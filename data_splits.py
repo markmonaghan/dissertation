@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import os
+import random
 
 from sklearn.utils import resample
 from sklearn.model_selection import train_test_split
@@ -209,44 +210,114 @@ def balance_the_classes(dataframe):
 balanced_df = balance_the_classes(all_images)
 
 
+
 def split_data(dataframe, dataframe_name):
     """
-    Function to split the data into training, evaluation, and test sets.
+    Function to split the data into training, evaluation, and test sets,
+    ensuring that each patient ID appears only in one set and the splits
+    are evenly distributed across gender and age groups.
     
     Args:
         dataframe (DataFrame): DataFrame containing the data dictionary.
         dataframe_name (str): Name of the DataFrame.
-    """ 
+    """
+    # Define split ratios
+    train_ratio = 0.7
+    val_ratio = 0.15
+    test_ratio = 0.15
 
-    # Identify unique patient IDs
-    unique_patient_ids = dataframe['Patient ID'].unique()
+    # Create a column for stratification
+    dataframe['stratify_col'] =  dataframe['Patient Gender'].astype(str) + '_' + dataframe['Patient Age'].astype(str)
+
+    # Identify unique patient IDs and their stratification group
+    unique_patient_ids = dataframe[['Patient ID', 'stratify_col']].drop_duplicates(subset=['Patient ID'])
 
     # Shuffle the patient IDs
     np.random.seed(42)  # For reproducibility
-    np.random.shuffle(unique_patient_ids)
+    random.seed(42)  # For reproducibility
+    # unique_patient_ids = unique_patient_ids.sample(frac=1).reset_index(drop=True)
 
-    # Split the patient IDs
-    train_ids, temp_ids = train_test_split(unique_patient_ids, test_size=0.2, random_state=42)  # 80% train, 20% temp
-    eval_ids, test_ids = train_test_split(temp_ids, test_size=0.5, random_state=42)  # 10% eval, 10% test
+    # Prepare lists to collect patient IDs for each split
+    train_patient_ids = []
+    val_patient_ids = []
+    test_patient_ids = []
+
+
+    # Separate patient IDs based on stratified groups
+    for stratify_val, group in unique_patient_ids.sort_values('stratify_col').groupby('stratify_col'):
+        patient_ids = group['Patient ID'].values
+        n_samples = len(patient_ids)
+
+        if n_samples == 1:
+            # If there is only one sample, put it in the training set
+            train_patient_ids.extend(patient_ids)
+        else:
+            # Split the group into train and temp sets
+            train_ids, temp_ids = train_test_split(
+                patient_ids, 
+                test_size=(val_ratio + test_ratio), 
+                random_state=42, 
+                stratify=[stratify_val] * len(patient_ids)
+            )
+            
+            if len(temp_ids) == 1:
+                if random.random() < 0.5:
+                    val_ids = temp_ids
+                    test_ids = []
+                else: 
+                    test_ids = temp_ids
+                    val_ids = []
+            else:
+                # Calculate proportion of validation size to temp size
+                temp_val_size = val_ratio / (val_ratio + test_ratio) if (val_ratio + test_ratio) > 0 else 0
+
+                # Split the temp set into validation and test sets
+                val_ids, test_ids = train_test_split(
+                    temp_ids, 
+                    test_size=temp_val_size, 
+                    random_state=42, 
+                    stratify=[stratify_val] * len(temp_ids)
+                )
+
+            # Add to respective lists
+            train_patient_ids.extend(train_ids)
+            val_patient_ids.extend(val_ids)
+            test_patient_ids.extend(test_ids)
+
+    # Convert lists to sets to ensure there are no duplicates
+    # train_patient_ids = list(set(train_patient_ids))
+    # val_patient_ids = list(set(val_patient_ids))
+    # test_patient_ids = list(set(test_patient_ids))
+
+    # Check for overlapping IDs
+    assert len(set(train_patient_ids) & set(val_patient_ids)) == 0, "Patient IDs overlap between train and val datasets."
+    assert len(set(train_patient_ids) & set(test_patient_ids)) == 0, "Patient IDs overlap between train and test datasets."
+    assert len(set(val_patient_ids) & set(test_patient_ids)) == 0, "Patient IDs overlap between val and test datasets."
 
     # Create new DataFrames based on the splits
-    train_data = dataframe[dataframe['Patient ID'].isin(train_ids)]
-    eval_data = dataframe[dataframe['Patient ID'].isin(eval_ids)]
-    test_data = dataframe[dataframe['Patient ID'].isin(test_ids)]
+    train_data = dataframe[dataframe['Patient ID'].isin(train_patient_ids)]
+    val_data = dataframe[dataframe['Patient ID'].isin(val_patient_ids)]
+    test_data = dataframe[dataframe['Patient ID'].isin(test_patient_ids)]
+
+    # Drop the temporary stratification column
+    train_data = train_data.drop(columns=['stratify_col'])
+    val_data = val_data.drop(columns=['stratify_col'])
+    test_data = test_data.drop(columns=['stratify_col'])
 
     # Save the splits to new CSV files
-    train_data.to_csv(rf'C:\Users\Mark\Documents\rp\data_dictionaries\{dataframe_name}_train_data_dictionary.csv', index=False)
-    eval_data.to_csv(rf'C:\Users\Mark\Documents\rp\data_dictionaries\{dataframe_name}_eval_data_dictionary.csv', index=False)
-    test_data.to_csv(rf'C:\Users\Mark\Documents\rp\data_dictionaries\{dataframe_name}_test_data_dictionary.csv', index=False)
+    train_data.to_csv(f'C:\\Users\\Mark\\Documents\\rp\\data_dictionaries\\{dataframe_name}_train_data_dictionary.csv', index=False)
+    val_data.to_csv(f'C:\\Users\\Mark\\Documents\\rp\\data_dictionaries\\{dataframe_name}_eval_data_dictionary.csv', index=False)
+    test_data.to_csv(f'C:\\Users\\Mark\\Documents\\rp\\data_dictionaries\\{dataframe_name}_test_data_dictionary.csv', index=False)
 
     print("**************************************************")
     print(f"Balanced DataFrame shape for {dataframe_name}:", dataframe.shape)
     print(f"Train DataFrame shape for {dataframe_name}:", train_data.shape)
-    print(f"Eval DataFrame shape for {dataframe_name}:", eval_data.shape)
+    print(f"Eval DataFrame shape for {dataframe_name}:", val_data.shape)
     print(f"Test DataFrame shape for {dataframe_name}:", test_data.shape)
     print("**************************************************")
     
-    return train_data, eval_data, test_data
+    return train_data, val_data, test_data
+
 
 # Call the split_data function and pass it the dataframe and the name of the dataframe as a string to name the new CSV files
 train_data, eval_data, test_data = split_data(balanced_df, "balanced_df")
@@ -300,7 +371,7 @@ def find_image_paths(df, column_name, directories):
             print(f"Image not found: {image_name}")
 
 # Call the function to find the paths of images
-find_image_paths(balanced_df, 'Image Index', images_directory)
+# find_image_paths(balanced_df, 'Image Index', images_directory)
 
 
 def print_stats():
@@ -362,7 +433,7 @@ def check_for_duplicate_patient_ids():
     else:
         print("No duplicate Patient IDs found.")
 
-check_for_duplicate_patient_ids()
+# check_for_duplicate_patient_ids()
 
 
 
