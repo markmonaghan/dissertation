@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import os
 import random
+import datetime
+import re
 
 from sklearn.utils import resample
 from sklearn.model_selection import train_test_split
@@ -11,6 +13,9 @@ data_dictionary = r'C:\Users\Mark\Documents\rp\nih_xrays_data_dictionary.csv'
 
 # Read the CSV file into a DataFrame
 all_images = pd.read_csv(data_dictionary)
+
+# Get the current timestamp to add to any output filenames
+timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
 # Define a function for labeling
 def determine_label(finding):
@@ -281,11 +286,6 @@ def split_data(dataframe, dataframe_name):
             val_patient_ids.extend(val_ids)
             test_patient_ids.extend(test_ids)
 
-    # Convert lists to sets to ensure there are no duplicates
-    # train_patient_ids = list(set(train_patient_ids))
-    # val_patient_ids = list(set(val_patient_ids))
-    # test_patient_ids = list(set(test_patient_ids))
-
     # Check for overlapping IDs
     assert len(set(train_patient_ids) & set(val_patient_ids)) == 0, "Patient IDs overlap between train and val datasets."
     assert len(set(train_patient_ids) & set(test_patient_ids)) == 0, "Patient IDs overlap between train and test datasets."
@@ -306,12 +306,12 @@ def split_data(dataframe, dataframe_name):
     val_data.to_csv(f'C:\\Users\\Mark\\Documents\\rp\\data_dictionaries\\{dataframe_name}_eval_data_dictionary.csv', index=False)
     test_data.to_csv(f'C:\\Users\\Mark\\Documents\\rp\\data_dictionaries\\{dataframe_name}_test_data_dictionary.csv', index=False)
 
-    print("**************************************************")
-    print(f"Balanced DataFrame shape for {dataframe_name}:", dataframe.shape)
-    print(f"Train DataFrame shape for {dataframe_name}:", train_data.shape)
-    print(f"Eval DataFrame shape for {dataframe_name}:", val_data.shape)
-    print(f"Test DataFrame shape for {dataframe_name}:", test_data.shape)
-    print("**************************************************")
+    # print("**************************************************")
+    # print(f"Balanced DataFrame shape for {dataframe_name}:", dataframe.shape)
+    # print(f"Train DataFrame shape for {dataframe_name}:", train_data.shape)
+    # print(f"Eval DataFrame shape for {dataframe_name}:", val_data.shape)
+    # print(f"Test DataFrame shape for {dataframe_name}:", test_data.shape)
+    # print("**************************************************")
     
     return train_data, val_data, test_data
 
@@ -335,40 +335,35 @@ images_directory = [
     r'C:\Users\Mark\Documents\rp\nih_dataset\cxr_images_dir\dir_12'
     ]
 
-def find_image_paths(df, column_name, directories):
+def find_image_paths(df, dataframe_name, column_name, directories):
     """
     Function to find the paths of images listed in a DataFrame column.
     
     Parameters:
     df (pd.DataFrame): DataFrame containing the image names.
+    dataframe_name (str): Name of the DataFrame to include in the output file name.
     column_name (str): The column name in the DataFrame that contains the image names.
     directories (list): List of directories to search for the images.
-    
-    Returns:
-    None: Prints the paths to the images.
+
     """
+    
     # Iterate over each image index in the DataFrame
-    for image_name in df[column_name]:
-        # Initialize a flag to check if the image is found
-        image_found = False
-        
+    for image_name in df[column_name]:                    
         # Iterate over each directory
         for directory in directories:
             # Construct the full path of the image
             image_path = os.path.join(directory, image_name)
-            
+                        
             # Check if the image exists at the constructed path
             if os.path.isfile(image_path):
-                # print(f"Image found: {image_path}")
-                image_found = True
+                with open(rf'C:\Users\Mark\Documents\rp\data_dictionaries\image_paths\{dataframe_name}_{timestamp}_image_paths.txt', 'a') as f:
+                    f.write(image_path + '\n')
                 break  # Exit the loop once the image is found
-        
-        # If the image is not found in any directory, print a message
-        if not image_found:
-            print(f"Image not found: {image_name}")
+            else:
+                continue
 
 # Call the function to find the paths of images
-# find_image_paths(balanced_df, 'Image Index', images_directory)
+find_image_paths(balanced_df, "balanced_df", 'Image Index', images_directory)
 
 
 def print_stats():
@@ -402,7 +397,7 @@ def print_stats():
     print(f"Number of 'No Finding' rows in balanced_df:", (balanced_df['Label'] == 'No Finding').sum())
     print(f"Number of 'Non-Fibrosis + No Finding' rows in balanced_df:", (balanced_df['Label'].isin(['Non-Fibrosis', 'No Finding'])).sum())
 
-print_stats()
+# print_stats()
 
 
 
