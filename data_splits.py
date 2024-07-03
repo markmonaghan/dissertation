@@ -211,8 +211,6 @@ def balance_the_classes(dataframe):
 
 balanced_df = balance_the_classes(all_images)
 
-
-
 def split_data(dataframe, dataframe_name):
     """
     Function to split the data into training, evaluation, and test sets, ensuring that each patient ID appears only in one set and age and gender is stratified across the data splits
@@ -405,34 +403,6 @@ def print_stats():
     print(f"Number of 'Non-Fibrosis + No Finding' rows in balanced_df:", (balanced_df['Label'].isin(['Non-Fibrosis', 'No Finding'])).sum())
 
 print_stats()
-
-
-
-def check_for_duplicate_patient_ids():
-    """
-    Function to check for duplicate patient IDs in the data dictionary.
-    """
-    print("Checking for duplicate Patient IDs...")
-    
-    # Convert Patient ID columns to sets
-    train_ids = set(train_data['Patient ID'])
-    eval_ids = set(eval_data['Patient ID'])
-    test_ids = set(test_data['Patient ID'])
-
-    # Check for intersections between sets
-    train_eval_intersection = train_ids.intersection(eval_ids)
-    train_test_intersection = train_ids.intersection(test_ids)
-    eval_test_intersection = eval_ids.intersection(test_ids)
-
-    # Collect all duplicate Patient IDs
-    duplicate_patient_ids = train_eval_intersection.union(train_test_intersection).union(eval_test_intersection)
-
-    if duplicate_patient_ids:
-        print(f"Duplicate Patient IDs found: {duplicate_patient_ids}")
-    else:
-        print("No duplicate Patient IDs found.")
-
-# check_for_duplicate_patient_ids()
 
 
 
