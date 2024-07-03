@@ -214,6 +214,7 @@ def balance_the_classes(dataframe):
     
     return balanced_df
 
+# Call the balance_the_classes function and pass it the DataFrame
 balanced_df = balance_the_classes(all_images)
 
 def split_data(dataframe, dataframe_name):
