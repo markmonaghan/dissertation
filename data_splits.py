@@ -86,8 +86,6 @@ def count_image_labels(dataframe):
     return fibrosis_count, no_finding_count, non_fibrosis_count, total_non_fibrosis_count
 
 # Call the count_image_labels function and pass it the dataframe    
-count_image_labels(all_images)
-
 fibrosis_count, no_finding_count, non_fibrosis_count, total_non_fibrosis_count = count_image_labels(all_images)
 
 def count_image_views(dataframe):
@@ -183,18 +181,22 @@ def balance_the_classes(dataframe):
     Returns:
         balanced_df (pd.DataFrame): DataFrame with balanced classes.
     """
-        
+       
     # Separate the DataFrame by classes
     fibrosis_df = dataframe[dataframe['Label'] == 'Fibrosis']
     non_fibrosis_df = dataframe[dataframe['Label'] == 'Non-Fibrosis']
     no_finding_df = dataframe[dataframe['Label'] == 'No Finding']
 
-    # Determine the number of samples needed from 'Non-Fibrosis' and 'No Finding'
-    num_samples_per_class = fibrosis_count // 2
+    # Compute the number of images per non-fibrosis and no finding
+    images_per_part = fibrosis_count / (no_finding_count + non_fibrosis_count)
 
-    # Resample 'Non-Fibrosis' and 'No Finding' to half the number of 'Fibrosis' images
-    non_fibrosis_sampled = resample(non_fibrosis_df, n_samples=num_samples_per_class, random_state=42)
-    no_finding_sampled = resample(no_finding_df, n_samples=num_samples_per_class, random_state=42)
+    # Calculate the number of no_finding and non_fibrosis images
+    no_finding_ratio_count = round(no_finding_count * images_per_part)
+    non_fibrosis_ratio_count = fibrosis_count - no_finding_ratio_count   
+
+    # Resample the number of 'Non-Fibrosis' and 'No Finding' images, based on the ratio counts
+    non_fibrosis_sampled = resample(non_fibrosis_df, n_samples=non_fibrosis_ratio_count, random_state=42)
+    no_finding_sampled = resample(no_finding_df, n_samples=no_finding_ratio_count, random_state=42)
 
     # Combine the balanced classes
     balanced_df = pd.concat([fibrosis_df, non_fibrosis_sampled, no_finding_sampled])
@@ -213,16 +215,13 @@ balanced_df = balance_the_classes(all_images)
 
 def split_data(dataframe, dataframe_name):
     """
-    Function to split the data into training, evaluation, and test sets,
-    ensuring that each patient ID appears only in one set and the splits
-    are evenly distributed across gender and age groups.
+    Function to split the data into training, evaluation, and test sets, ensuring that each patient ID appears only in one set and age and gender is stratified across the data splits
     
     Args:
         dataframe (DataFrame): DataFrame containing the data dictionary.
         dataframe_name (str): Name of the DataFrame.
     """
     # Define split ratios
-    train_ratio = 0.7
     val_ratio = 0.15
     test_ratio = 0.15
 
